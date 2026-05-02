@@ -1,0 +1,97 @@
+.att-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.att-stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.att-stat-label { display: block; font-size: var(--font-size-xs); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-2); }
+.att-stat-value { font-size: var(--font-size-2xl); font-weight: 700; }
+
+.checkin-extras { display: flex; gap: var(--space-4); margin-bottom: var(--space-5); flex-wrap: wrap; align-items: center; }
+
+.geo-status {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  border: 1px solid var(--border-color);
+}
+
+.geo-status.active { background: rgba(16, 185, 129, 0.08); border-color: var(--success); color: var(--success); }
+.geo-status.inactive { background: rgba(239, 68, 68, 0.08); border-color: var(--error); color: var(--error); }
+
+.selfie-preview { display: flex; align-items: center; gap: var(--space-3); }
+.selfie-preview img { width: 48px; height: 48px; border-radius: var(--radius-full); object-fit: cover; border: 2px solid var(--success); }
+
+.camera-modal {
+  margin-bottom: var(--space-5);
+  text-align: center;
+}
+
+.camera-view { margin: var(--space-4) 0; display: flex; justify-content: center; }
+.camera-view video { width: 320px; height: 240px; border-radius: var(--radius-lg); background: #000; }
+.camera-actions { display: flex; gap: var(--space-3); justify-content: center; }
+
+.att-tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-5);
+  border-bottom: 2px solid var(--border-light);
+}
+
+.shift-summary { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+
+.shift-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid;
+  flex: 1;
+  min-width: 180px;
+}
+
+.calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.calendar-day-label { text-align: center; font-size: var(--font-size-xs); font-weight: 600; color: var(--text-tertiary); padding: var(--space-2); }
+
+.calendar-cell {
+  aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: var(--radius-md); position: relative; transition: background var(--transition-fast); cursor: default; gap: 4px;
+}
+
+.calendar-cell:not(.empty):hover { background: var(--bg-hover); }
+.calendar-date { font-size: var(--font-size-sm); font-weight: 500; }
+.calendar-status-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.status-present .calendar-status-dot { background: var(--success); }
+.status-wfh .calendar-status-dot { background: var(--info); }
+.status-absent .calendar-status-dot { background: var(--error); }
+
+.status-present { background: rgba(16, 185, 129, 0.08); }
+.status-wfh { background: rgba(59, 130, 246, 0.08); }
+.status-absent { background: rgba(239, 68, 68, 0.08); }
+
+.calendar-legend { display: flex; gap: var(--space-4); justify-content: center; margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-light); }
+.legend-item { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-xs); color: var(--text-secondary); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+.today-list { display: flex; flex-direction: column; gap: var(--space-1); max-height: 500px; overflow-y: auto; }
+.today-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); transition: background var(--transition-fast); }
+.today-item:hover { background: var(--bg-hover); }
+
+@media (max-width: 768px) {
+  .att-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .shift-summary { flex-direction: column; }
+}

@@ -1,0 +1,277 @@
+.analytics-tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-6);
+  border-bottom: 2px solid var(--border-light);
+  overflow-x: auto;
+}
+
+.analytics-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.analytics-tab:hover { color: var(--text-primary); }
+.analytics-tab.active { color: var(--apple-blue); border-bottom-color: var(--apple-blue); }
+
+.tab-badge {
+  background: var(--error);
+  color: white;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.analytics-grid .chart-card { min-height: 360px; }
+
+.page-actions { display: flex; gap: var(--space-2); }
+
+/* Anomalies */
+.anomaly-summary {
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.anomaly-stat {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-6);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.anomaly-count { font-size: var(--font-size-2xl); font-weight: 700; }
+
+.anomaly-list { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.anomaly-card {
+  display: flex;
+  overflow: hidden;
+  gap: 0;
+}
+
+.anomaly-severity {
+  width: 4px;
+  flex-shrink: 0;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+
+.anomaly-severity.high { background: var(--error); }
+.anomaly-severity.medium { background: var(--warning); }
+.anomaly-severity.low { background: var(--success); }
+
+.anomaly-body { flex: 1; padding: var(--space-4); }
+
+.anomaly-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); }
+.anomaly-top h4 { margin: 0; }
+
+.anomaly-meta { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); flex-wrap: wrap; }
+.anomaly-metric { font-weight: 600; color: var(--apple-blue); font-size: var(--font-size-sm); }
+
+/* Attrition */
+.attrition-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.att-risk-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.att-risk-count { font-size: var(--font-size-3xl); font-weight: 700; }
+.att-risk-card.high .att-risk-count { color: var(--error); }
+.att-risk-card.medium .att-risk-count { color: var(--warning); }
+.att-risk-card.low .att-risk-count { color: var(--success); }
+.att-risk-card.avg .att-risk-count { color: var(--apple-blue); }
+
+.risk-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 120px;
+}
+
+.risk-bar {
+  height: 6px;
+  border-radius: 3px;
+  transition: width 0.8s ease;
+}
+
+.risk-score-label { font-size: var(--font-size-xs); font-weight: 600; min-width: 35px; }
+
+/* Cost */
+.cost-total {
+  text-align: center;
+  margin-bottom: var(--space-5);
+  padding: var(--space-6);
+}
+
+.cost-amount {
+  display: block;
+  font-size: var(--font-size-4xl);
+  font-weight: 800;
+  color: var(--apple-blue);
+  margin-top: var(--space-2);
+}
+
+.salary-statement-card {
+  padding: var(--space-6);
+}
+
+.salary-statement-toolbar {
+  margin-bottom: var(--space-4);
+}
+
+.salary-statement-form {
+  margin-bottom: var(--space-4);
+  max-width: 560px;
+}
+
+.salary-print-btn {
+  min-width: 90px;
+}
+
+.salary-statement-print {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  background: #fff;
+}
+
+.salary-print-title {
+  margin: 0;
+  color: var(--apple-blue);
+}
+
+.salary-print-company {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+}
+
+.salary-print-subtitle {
+  margin: 8px 0 var(--space-3);
+  color: #dc2626;
+}
+
+.salary-statement-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.salary-statement-meta div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px dashed var(--border-light);
+  padding-bottom: 4px;
+}
+
+.salary-statement-meta span {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.salary-statement-meta strong {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-align: right;
+}
+
+.salary-statement-table th:nth-child(2),
+.salary-statement-table th:nth-child(3),
+.salary-statement-table td:nth-child(2),
+.salary-statement-table td:nth-child(3) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.salary-group-row td {
+  color: #dc2626;
+  font-weight: 700;
+  background: rgba(220, 38, 38, 0.04);
+}
+
+.salary-net-row td {
+  font-weight: 700;
+}
+
+.salary-net-row td:first-child {
+  color: #dc2626;
+}
+
+@media print {
+  .sidebar,
+  .mobile-menu-btn,
+  .page-header,
+  .analytics-tabs,
+  .page-actions,
+  .salary-statement-form,
+  .salary-statement-toolbar > div p {
+    display: none !important;
+  }
+
+  .main-content,
+  .content-wrapper,
+  .analytics,
+  .salary-statement-card {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+  }
+
+  .salary-statement-print {
+    border: 1px solid #d1d5db !important;
+    border-radius: 0 !important;
+    padding: 14px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .analytics-grid { grid-template-columns: 1fr; }
+  .analytics-grid .chart-card { grid-column: auto !important; }
+  .attrition-summary { grid-template-columns: repeat(2, 1fr); }
+  .anomaly-summary { flex-wrap: wrap; }
+  .salary-statement-meta {
+    grid-template-columns: 1fr;
+  }
+  .salary-statement-card {
+    padding: var(--space-4);
+  }
+}
