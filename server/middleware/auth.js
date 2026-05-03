@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { findById } = require('../config/db');
 
 const auth = (req, res, next) => {
   try {
@@ -18,12 +19,23 @@ const auth = (req, res, next) => {
 
 const authorize = (...roles) => {
   return (req, res, next) => {
-    if (!req.user) {
+    if (!req.user || !req.user.id) {
       return res.status(401).json({ message: 'Authentication required.' });
     }
-    if (!roles.includes(req.user.role)) {
+    
+    // Fetch real-time user data from the database to ensure roles haven't changed since login
+    const realUser = findById('users', req.user.id);
+    if (!realUser) {
+      return res.status(401).json({ message: 'User no longer exists.' });
+    }
+
+    // Check the real-time role
+    if (!roles.includes(realUser.role)) {
       return res.status(403).json({ message: 'Access denied. Insufficient permissions.' });
     }
+    
+    // Update req.user to have the fresh role for downstream controllers just in case
+    req.user.role = realUser.role;
     next();
   };
 };

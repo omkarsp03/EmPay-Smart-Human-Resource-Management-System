@@ -342,7 +342,7 @@ const getAuditLog = (req, res, next) => {
     let logs = [...db.activityLogs];
 
     if (action) logs = logs.filter(l => l.action.toLowerCase().includes(action.toLowerCase()));
-    if (userId) logs = logs.filter(l => l.userId === userId);
+    if (userId) logs = logs.filter(l => String(l.userId) === String(userId));
 
     logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     const total = logs.length;

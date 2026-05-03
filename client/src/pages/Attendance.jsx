@@ -75,8 +75,15 @@ export default function Attendance() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 } });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
-    } catch { toast.error('Camera access denied'); setShowCamera(false); }
+      // Wait for React to render the video element before attaching the stream
+      setTimeout(() => {
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      }, 50);
+    } catch (err) { 
+      console.error("Camera Error:", err);
+      toast.error(`Camera error: ${err.name || err.message || 'Access denied'}`);
+      setShowCamera(false); 
+    }
   };
 
   const captureSelfie = () => {

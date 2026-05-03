@@ -50,9 +50,10 @@ export default function TimeOff() {
   const [employees, setEmployees] = useState([]);
   const [allocations, setAllocations] = useState([]);
 
-  const loadBalances = async () => {
+  const loadBalances = async (userId) => {
     try {
-      const res = await leaveAPI.getBalances();
+      const params = userId ? { userId } : {};
+      const res = await leaveAPI.getBalances(params);
       setBalances(res.data || {});
     } catch {}
   };
@@ -72,8 +73,11 @@ export default function TimeOff() {
     loadLeaves();
   }, [filter, viewTab, user._id]);
 
+  // Auto-refresh balances every 5 seconds so changes appear live when HR approves/rejects
   useEffect(() => {
     loadBalances();
+    const interval = setInterval(() => loadBalances(), 5000);
+    return () => clearInterval(interval);
   }, [user._id, mainTab]);
 
   const loadAllocations = useCallback(async () => {
@@ -131,24 +135,24 @@ export default function TimeOff() {
   const handleApprove = async (id) => {
     try {
       await leaveAPI.approve(id);
-      toast.success('Approved');
+      toast.success('Leave approved');
       if (filter === 'Pending') setFilter('all');
-      loadLeaves();
-      loadBalances();
+      await loadLeaves();
+      await loadBalances();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed');
+      toast.error(err.response?.data?.message || 'Failed to approve leave');
     }
   };
 
   const handleReject = async (id) => {
     try {
       await leaveAPI.reject(id);
-      toast.success('Rejected');
+      toast.success('Leave rejected — days refunded to employee');
       if (filter === 'Pending') setFilter('all');
-      loadLeaves();
-      loadBalances();
+      await loadLeaves();
+      await loadBalances();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed');
+      toast.error(err.response?.data?.message || 'Failed to reject leave');
     }
   };
 
@@ -215,16 +219,34 @@ export default function TimeOff() {
   const summaryCards = (
     <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
       <div className="card" style={{ padding: 'var(--space-4)', minWidth: 200 }}>
-        <div className="text-sm text-secondary">Paid time off</div>
-        <div className="text-primary" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-          {balances['Paid Time Off'] ?? 0} Days Available
+        <div className="text-sm text-secondary">Paid Time Off</div>
+        <div className="text-primary" style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+          {balances['Paid Time Off']?.remaining ?? balances['Paid Time Off'] ?? 0}
+          <span style={{ fontSize: '1rem', color: 'var(--text-tertiary)', fontWeight: 400 }}>
+            {' '}/ {balances['Paid Time Off']?.limit ?? 15} days
+          </span>
         </div>
+        <div className="text-xs text-secondary">Days remaining this year</div>
       </div>
       <div className="card" style={{ padding: 'var(--space-4)', minWidth: 200 }}>
-        <div className="text-sm text-secondary">Sick time off</div>
-        <div className="text-primary" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-          {String(balances['Sick Leave'] ?? 0).padStart(2, '0')} Days Available
+        <div className="text-sm text-secondary">Sick Leave</div>
+        <div className="text-primary" style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+          {balances['Sick Leave']?.remaining ?? balances['Sick Leave'] ?? 0}
+          <span style={{ fontSize: '1rem', color: 'var(--text-tertiary)', fontWeight: 400 }}>
+            {' '}/ {balances['Sick Leave']?.limit ?? 12} days
+          </span>
         </div>
+        <div className="text-xs text-secondary">Days remaining this year</div>
+      </div>
+      <div className="card" style={{ padding: 'var(--space-4)', minWidth: 200 }}>
+        <div className="text-sm text-secondary">Unpaid Leave</div>
+        <div className="text-primary" style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+          {balances['Unpaid Leave']?.remaining ?? balances['Unpaid Leave'] ?? 30}
+          <span style={{ fontSize: '1rem', color: 'var(--text-tertiary)', fontWeight: 400 }}>
+            {' '}/ {balances['Unpaid Leave']?.limit ?? 30} days
+          </span>
+        </div>
+        <div className="text-xs text-secondary">Days remaining this year</div>
       </div>
     </div>
   );
@@ -485,7 +507,7 @@ export default function TimeOff() {
             </div>
           </div>
 
-          {summaryCards}
+          {viewTab === 'My Time Off' && summaryCards}
 
           <div className="card" style={{ marginTop: 'var(--space-4)' }}>
             <div className="table-container">

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
 import { generatePayslipPDF } from '../utils/payslipPDF';
+import { generatePayrunReportPDF } from '../utils/reportPDF';
 import { Download, CreditCard, FileText, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import './Payroll.css';
@@ -187,6 +188,13 @@ export default function Payroll() {
           {canManagePayroll && payrollTab === 'Payrun' && (
             <>
               <button type="button" className="btn btn-secondary" onClick={() => toast.info('Validation: review totals and attendance linkage before marking Done.')}>Validate</button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => generatePayrunReportPDF(displayRecordsFiltered.length > 0 ? displayRecordsFiltered : displayRecords, payrunFocusMonth || 'All Months')}
+              >
+                <Download size={15} /> Download PDF
+              </button>
               <button type="button" className="btn btn-primary" onClick={() => setProcessModal(true)}><CreditCard size={16} /> Payrun</button>
             </>
           )}

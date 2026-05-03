@@ -46,7 +46,7 @@ const db = {
   activityLogs: [],
 };
 
-const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || 'postgres://empay_user:empay_pass@localhost:5432/empay';
 const DATA_FILE_PATH = process.env.DATA_FILE_PATH || path.join(__dirname, '../data/app-state.json');
 const SQLITE_DB_PATH = process.env.SQLITE_DB_PATH || path.join(__dirname, '../data/app-state.db');
 let pool = null;
@@ -209,6 +209,8 @@ const flushToPostgres = async () => {
   );
 };
 
+const { exec } = require('child_process');
+
 const queuePersist = () => {
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
@@ -226,6 +228,13 @@ const queuePersist = () => {
       flushToFile(),
     ])
       .finally(() => {
+        // Automatically sync individual Postgres tables so data is instantly visible in pgAdmin
+        if (pgEnabled) {
+          exec('node ' + path.join(__dirname, '../scripts/syncTables.js'), (err) => {
+            if (err) console.error("Real-time PostgreSQL sync failed:", err.message);
+          });
+        }
+        
         persistInFlight = null;
         if (pendingAfterFlight) {
           pendingAfterFlight = false;
@@ -286,13 +295,13 @@ const forcePersistNow = async () => {
   await Promise.all([flushToPostgres(), flushToSqlite(), flushToFile()]);
 };
 
-const findById = (collection, id) => db[collection].find((item) => item._id === id);
+const findById = (collection, id) => db[collection].find((item) => String(item._id) === String(id));
 const findByQuery = (collection, query) => {
   return db[collection].filter((item) => {
     return Object.entries(query).every(([key, value]) => {
       if (value === undefined || value === null) return true;
       if (typeof value === 'object' && value.$in) {
-        return value.$in.includes(item[key]);
+        return value.$in.some(v => String(v) === String(item[key]));
       }
       if (typeof value === 'object' && value.$gte && value.$lte) {
         return item[key] >= value.$gte && item[key] <= value.$lte;
@@ -306,6 +315,10 @@ const findByQuery = (collection, query) => {
       if (typeof value === 'object' && value.$regex) {
         const regex = new RegExp(value.$regex, value.$options || '');
         return regex.test(item[key]);
+      }
+      // If the field is an ID field, compare as strings
+      if (key.toLowerCase().endsWith('id') || key === '_id') {
+        return String(item[key]) === String(value);
       }
       return item[key] === value;
     });
@@ -324,7 +337,7 @@ const insertOne = (collection, doc) => {
 };
 
 const updateOne = (collection, id, update) => {
-  const index = db[collection].findIndex((item) => item._id === id);
+  const index = db[collection].findIndex((item) => String(item._id) === String(id));
   if (index === -1) return null;
   db[collection][index] = {
     ...db[collection][index],
@@ -336,7 +349,7 @@ const updateOne = (collection, id, update) => {
 };
 
 const deleteOne = (collection, id) => {
-  const index = db[collection].findIndex((item) => item._id === id);
+  const index = db[collection].findIndex((item) => String(item._id) === String(id));
   if (index === -1) return false;
   db[collection].splice(index, 1);
   queuePersist();

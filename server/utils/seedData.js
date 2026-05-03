@@ -25,7 +25,7 @@ const seedData = async () => {
     managerId: null,
     designation: 'Administrator',
     location: 'Pune',
-    leaveBalances: { 'Paid Time Off': 30, 'Sick Leave': 10, 'Unpaid Leave': 0 },
+    leaveBalances: { 'Paid Time Off': 15, 'Sick Leave': 12, 'Unpaid Leave': 30 },
     bankDetails: { bankName: 'HDFC', accountNo: '501000123456', ifsc: 'HDFC0001234', pan: 'AAAAA0000A', uan: '101234567890' },
   });
 
@@ -37,7 +37,7 @@ const seedData = async () => {
     managerId: admin._id,
     designation: 'HR Manager',
     location: 'Pune',
-    leaveBalances: { 'Paid Time Off': 24, 'Sick Leave': 7, 'Unpaid Leave': 0 },
+    leaveBalances: { 'Paid Time Off': 15, 'Sick Leave': 12, 'Unpaid Leave': 30 },
     bankDetails: { bankName: 'ICICI', accountNo: '602000998877', ifsc: 'ICIC0006020', pan: 'BBBBB1111B', uan: '101234567891' },
   });
   const hr2 = insertOne('users', {
@@ -47,7 +47,7 @@ const seedData = async () => {
     managerId: admin._id,
     designation: 'HR Officer',
     location: 'Mumbai',
-    leaveBalances: { 'Paid Time Off': 24, 'Sick Leave': 7, 'Unpaid Leave': 0 },
+    leaveBalances: { 'Paid Time Off': 15, 'Sick Leave': 12, 'Unpaid Leave': 30 },
     bankDetails: { bankName: 'SBI', accountNo: '30100234567', ifsc: 'SBIN0003010', pan: 'CCCCC2222C', uan: '101234567892' },
   });
 
@@ -59,7 +59,7 @@ const seedData = async () => {
     managerId: admin._id,
     designation: 'Payroll Lead',
     location: 'Pune',
-    leaveBalances: { 'Paid Time Off': 24, 'Sick Leave': 7, 'Unpaid Leave': 0 },
+    leaveBalances: { 'Paid Time Off': 15, 'Sick Leave': 12, 'Unpaid Leave': 30 },
     bankDetails: { bankName: 'Axis', accountNo: '910020012345678', ifsc: 'UTIB0009100', pan: 'DDDDD3333D', uan: '101234567893' },
   });
 
@@ -80,7 +80,7 @@ const seedData = async () => {
       managerId: i === 1 ? null : hr1._id,
       designation: ['Engineer', 'Designer', 'Analyst', 'Executive'][i % 4],
       location: i % 2 === 0 ? 'Pune' : 'Bangalore',
-      leaveBalances: { 'Paid Time Off': 24, 'Sick Leave': 7, 'Unpaid Leave': 0 },
+      leaveBalances: { 'Paid Time Off': 15, 'Sick Leave': 12, 'Unpaid Leave': 30 },
       bankDetails: isJohn
         ? { bankName: '', accountNo: '', ifsc: '', pan: 'EEEEE4444E', uan: '' }
         : { bankName: 'HDFC', accountNo: `5${String(100000 + i).slice(0, 6)}`, ifsc: 'HDFC0001234', pan: 'ABCDE1234F', uan: `1012345678${String(90 + i).slice(-2)}` },
@@ -107,14 +107,17 @@ const seedData = async () => {
 
   const allUsers = [admin, hr1, hr2, payrollOfficer, ...employees];
 
-  // Attendance (last 30 days)
+  // Attendance (last 1.5 years ~ 540 days)
   const statuses = ['Present', 'Present', 'Present', 'Present', 'WFH', 'Absent'];
-  for (let day = 30; day >= 0; day--) {
+  for (let day = 540; day >= 0; day--) {
     const d = new Date(); d.setDate(d.getDate() - day);
     if (d.getDay() === 0 || d.getDay() === 6) continue; // Skip weekends
     const dateStr = d.toISOString().split('T')[0];
 
     allUsers.filter(u => u.status === 'Active').forEach(user => {
+      // Don't generate attendance if the user hasn't joined yet
+      if (new Date(user.joinDate) > d) return;
+
       const status = statuses[Math.floor(Math.random() * statuses.length)];
       if (status !== 'Absent') {
         const checkInH = 8 + Math.floor(Math.random() * 2);

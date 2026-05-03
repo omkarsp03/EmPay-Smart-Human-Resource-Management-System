@@ -13,7 +13,7 @@ const askChatbot = (req, res, next) => {
 
     // Leave balance queries
     if (q.includes('leave') && (q.includes('how many') || q.includes('balance') || q.includes('remaining') || q.includes('left'))) {
-      const approved = db.leaves.filter(l => l.userId === userId && l.status === 'Approved');
+      const approved = db.leaves.filter(l => String(l.userId) === String(userId) && l.status === 'Approved');
       const totalUsed = approved.reduce((sum, l) => {
         const start = new Date(l.startDate);
         const end = new Date(l.endDate);
@@ -30,7 +30,7 @@ const askChatbot = (req, res, next) => {
     }
     // Salary queries
     else if (q.includes('salary') || q.includes('payslip') || q.includes('pay') || q.includes('ctc') || q.includes('compensation')) {
-      const payroll = db.payroll.filter(p => p.userId === userId).sort((a, b) => new Date(b.payDate) - new Date(a.payDate));
+      const payroll = db.payroll.filter(p => String(p.userId) === String(userId)).sort((a, b) => new Date(b.payDate) - new Date(a.payDate));
       if (payroll.length > 0) {
         const latest = payroll[0];
         answer = `Your latest payslip (${latest.month}):\n• Basic Salary: ₹${latest.basicSalary.toLocaleString()}\n• Bonus: ₹${latest.bonus.toLocaleString()}\n• Deductions: ₹${latest.deductions.toLocaleString()}\n• TDS: ₹${(latest.tds || 0).toLocaleString()}\n• PF: ₹${(latest.pf || 0).toLocaleString()}\n• Net Salary: ₹${latest.netSalary.toLocaleString()}`;
@@ -41,7 +41,7 @@ const askChatbot = (req, res, next) => {
     }
     // Attendance queries
     else if (q.includes('attendance') || q.includes('present') || q.includes('absent')) {
-      const records = db.attendance.filter(a => a.userId === userId);
+      const records = db.attendance.filter(a => String(a.userId) === String(userId));
       const present = records.filter(r => r.status === 'Present').length;
       const wfh = records.filter(r => r.status === 'WFH').length;
       const absent = records.filter(r => r.status === 'Absent').length;

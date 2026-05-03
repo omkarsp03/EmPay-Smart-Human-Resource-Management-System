@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { analyticsAPI, userAPI, payrollAPI } from '../api';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
-import { Download, AlertTriangle, Users, TrendingUp, Shield, DollarSign } from 'lucide-react';
+import { Download, AlertTriangle, Users, TrendingUp, Shield, DollarSign, FileText, Printer } from 'lucide-react';
+import { generateSalaryStatementPDF, generatePayrunReportPDF } from '../utils/reportPDF';
 import './Reports.css';
 
 const COLORS = ['#0071E3', '#34C759', '#FF9F0A', '#FF3B30', '#5AC8FA', '#AF52DE', '#FF2D55'];
@@ -147,14 +148,12 @@ export default function Reports() {
   // EXPORT FUNCTIONS (Downloading Data to Computer)
   // =========================================================================
 
-  /** Downloads a simple CSV file of the departments and employee count */
+  /** Downloads a CSV file of the departments and employee count */
   const exportCSV = () => {
     if (!data) return;
     const rows = [['Department', 'Employees']];
     (data.departments || []).forEach(d => rows.push([d.name, d.count]));
     const csv = rows.map(r => r.join(',')).join('\n');
-    
-    // Create a virtual file link and simulate a click to download
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'empay_report.csv'; a.click();
@@ -168,19 +167,39 @@ export default function Reports() {
     content += '<tr><th>Department</th><th>Employees</th></tr>';
     (data.departments || []).forEach(d => { content += `<tr><td>${d.name}</td><td>${d.count}</td></tr>`; });
     content += '</table>';
-    
     if (costs?.breakdown) {
       content += '<br/><table border="1"><tr><th>Department</th><th>Total Cost</th><th>Headcount</th><th>Cost/Employee</th></tr>';
       costs.breakdown.forEach(d => { content += `<tr><td>${d.department}</td><td>${d.totalCost}</td><td>${d.headcount}</td><td>${d.costPerEmployee}</td></tr>`; });
       content += '</table>';
     }
     content += '</body></html>';
-    
-    // Create a virtual file link and simulate a click to download
     const blob = new Blob([content], { type: 'application/vnd.ms-excel' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'empay_report.xls'; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  /** Download salary statement as a professional PDF */
+  const downloadSalaryStatementPDF = () => {
+    if (!stmtData) { alert('Please select an employee and wait for data to load first.'); return; }
+    const selectedUser = stmtUsers.find(u => String(u._id) === String(stmtUserId));
+    generateSalaryStatementPDF(stmtData, selectedUser?.name || 'Employee', stmtYear);
+  };
+
+  /** Download payrun report as a professional PDF */
+  const downloadPayrunPDF = () => {
+    if (!forecast?.history?.length) { alert('No payroll history data available to generate report.'); return; }
+    // Use the forecast history data which aggregates monthly payroll
+    const records = (forecast.history || []).map(h => ({
+      userName: `All Employees (${h.count})`,
+      basicSalary: h.basic,
+      bonus: h.bonus,
+      deductions: h.deductions,
+      pf: 0,
+      tds: 0,
+      netSalary: h.net,
+    }));
+    generatePayrunReportPDF(records, 'All Periods');
   };
 
   return (
@@ -219,13 +238,23 @@ export default function Reports() {
                 </p>
               )}
             </div>
-            <button
-              type="button"
-              className="btn btn-secondary salary-print-btn"
-              onClick={() => window.print()}
-            >
-              Print
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                className="btn btn-secondary salary-print-btn"
+                onClick={() => window.print()}
+              >
+                <Printer size={15} /> Print
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={downloadSalaryStatementPDF}
+                disabled={!stmtData}
+              >
+                <Download size={15} /> Download PDF
+              </button>
+            </div>
           </div>
           <div className="form-row salary-statement-form">
             <div className="form-group">
@@ -425,9 +454,14 @@ export default function Reports() {
 
       {activeTab === 'Salary Report' && (
         <div>
-          <div className="cost-total card">
-            <span className="text-sm text-tertiary">Total Company Payroll Cost</span>
-            <span className="cost-amount">₹{(costs?.totalCompanyCost || 0).toLocaleString()}</span>
+          <div className="cost-total card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <span className="text-sm text-tertiary">Total Company Payroll Cost</span>
+              <span className="cost-amount">₹{(costs?.totalCompanyCost || 0).toLocaleString()}</span>
+            </div>
+            <button type="button" className="btn btn-secondary" onClick={exportExcel}>
+              <Download size={15} /> Download Excel
+            </button>
           </div>
           <div className="analytics-grid">
             <div className="card chart-card">
@@ -470,7 +504,15 @@ export default function Reports() {
       {activeTab === 'Payroll Forecast' && (
         <div>
           <div className="card chart-card" style={{ marginBottom: 'var(--space-5)' }}>
-            <div className="card-header"><h3 className="card-title">Payroll Trend & Forecast</h3><span className="badge badge-primary">AI Predicted</span></div>
+            <div className="card-header">
+              <h3 className="card-title">Payroll Trend & Forecast</h3>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span className="badge badge-primary">AI Predicted</span>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={downloadPayrunPDF}>
+                  <Download size={14} /> Download Payrun PDF
+                </button>
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={350}>
               <AreaChart data={forecast?.combined || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />

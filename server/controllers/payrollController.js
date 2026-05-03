@@ -131,7 +131,7 @@ const getPayslipDetail = (req, res, next) => {
     if (req.user.role === 'Employee' && req.user.id !== userId) {
       return res.status(403).json({ message: 'Access denied.' });
     }
-    const record = db.payroll.find(p => p.userId === userId && p.month === month);
+    const record = db.payroll.find(p => String(p.userId) === String(userId) && p.month === month);
     if (!record) return res.status(404).json({ message: 'Payslip not found.' });
     const user = findById('users', userId);
 
@@ -321,7 +321,7 @@ const getSalaryStatement = (req, res, next) => {
     if (!user) return res.status(404).json({ message: 'User not found.' });
 
     const allForUser = db.payroll
-      .filter((p) => p.userId === userId && p.month)
+      .filter((p) => String(p.userId) === String(userId) && p.month)
       .sort((a, b) => String(b.month).localeCompare(String(a.month)));
 
     let records = allForUser.filter((p) => p.month.startsWith(requestedYear));

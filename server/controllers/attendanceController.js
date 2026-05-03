@@ -67,7 +67,7 @@ const markAttendance = (req, res, next) => {
     const { latitude, longitude, selfieData, status: manualStatus } = req.body;
     const now = new Date();
     const today = now.toISOString().split('T')[0];
-    const existing = db.attendance.find(a => a.userId === userId && a.date === today);
+    const existing = db.attendance.find(a => String(a.userId) === String(userId) && a.date === today);
 
     let geoStatus = null;
     let isWithinGeofence = null;
