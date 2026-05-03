@@ -2,6 +2,7 @@ require('dotenv').config({ path: '../.env' });
 const express = require('express');
 const cors = require('cors');
 const errorHandler = require('./middleware/errorHandler');
+const { initDatabase, forcePersistNow } = require('./config/db');
 
 const app = express();
 
@@ -27,16 +28,28 @@ app.get('/api/health', (req, res) => {
 // Error handler
 app.use(errorHandler);
 
-// Seed data on startup
 const seedData = require('./utils/seedData');
-seedData();
 
 const PORT = process.env.PORT || 5050;
-app.listen(PORT, () => {
-  console.log(`\n🚀 EmPay API Server running on port ${PORT}`);
-  console.log(`📊 Health: http://localhost:${PORT}/api/health`);
-  console.log(`\n📧 Demo Accounts:`);
-  console.log(`   Admin:    admin@empay.com / admin123`);
-  console.log(`   HR:       hr@empay.com / hr123`);
-  console.log(`   Employee: john@empay.com / emp123\n`);
-});
+
+const start = async () => {
+  try {
+    await initDatabase();
+    await seedData();
+    await forcePersistNow();
+
+    app.listen(PORT, () => {
+      console.log(`\n🚀 EmPay API Server running on port ${PORT}`);
+      console.log(`📊 Health: http://localhost:${PORT}/api/health`);
+      console.log(`\n📧 Demo Accounts:`);
+      console.log(`   Admin:    admin@empay.com / admin123`);
+      console.log(`   HR:       hr@empay.com / hr123`);
+      console.log(`   Employee: john@empay.com / emp123\n`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+start();

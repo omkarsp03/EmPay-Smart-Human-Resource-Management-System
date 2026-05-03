@@ -14,6 +14,7 @@ const seedData = async () => {
     'Emily Davis', 'Chris Wilson', 'Anna Taylor', 'James Anderson', 'Lisa Thomas',
     'Robert Martinez', 'Maria Garcia', 'William Lee', 'Jennifer White', 'Daniel Harris',
     'Amanda Clark', 'Matthew Lewis', 'Jessica Walker', 'Andrew Hall', 'Stephanie Allen',
+    'Nathan Young', 'Olivia King', 'Ethan Wright', 'Sophia Scott', 'Ava Baker', 'Noah Hill',
   ];
 
   // Admin
@@ -163,7 +164,7 @@ const seedData = async () => {
 
   // Payroll (last 3 months) — with tax calculations
   const baseSalaries = { Engineering: 85000, Design: 75000, Marketing: 70000, Sales: 72000, HR: 68000, Finance: 78000, Operations: 65000 };
-  const calcTDS = (annual) => { if (annual <= 300000) return 0; if (annual <= 600000) return Math.round((annual - 300000) * 0.05 / 12); if (annual <= 900000) return Math.round((15000 + (annual - 600000) * 0.10) / 12); return Math.round((45000 + (annual - 900000) * 0.15) / 12); };
+  const calcTDS = (annual) => { if (annual <= 300000) return 0; if (annual <= 600000) return Math.round((annual - 300000) * 0.05 / 12); if (annual <= 900000) return Math.round((15000 + (annual - 600000) * 0.10) / 12); if (annual <= 1200000) return Math.round((45000 + (annual - 900000) * 0.15) / 12); if (annual <= 1500000) return Math.round((90000 + (annual - 1200000) * 0.20) / 12); return Math.round((150000 + (annual - 1500000) * 0.30) / 12); };
   ['2026-02', '2026-03', '2026-04'].forEach(month => {
     allUsers.filter(u => u.status === 'Active' && u.role !== 'Admin').forEach(user => {
       const basic = baseSalaries[user.department] || 60000;

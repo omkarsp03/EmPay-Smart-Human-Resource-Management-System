@@ -7,25 +7,46 @@ function hoursBetween(checkInIso, checkOutIso) {
   const h = (new Date(checkOutIso).getTime() - new Date(checkInIso).getTime()) / (1000 * 60 * 60);
   return Math.max(0, +h.toFixed(2));
 }
-
+/**
+ * Compute work hours from an attendance record.
+ * Supports both legacy (single checkIn/checkOut) and sessions-array records.
+ * record.sessions = [ { checkIn, checkOut, hours }, ... ]
+ */
 function resolveWorkHours(record, asOf = new Date()) {
-  if (!record.checkIn) return { workHours: null, extraHours: 0 };
+  const sessions = Array.isArray(record.sessions) ? record.sessions : [];
   const day = String(record.date || '').slice(0, 10);
   const today = asOf.toISOString().split('T')[0];
-  let wh = null;
-  if (record.checkOut) {
-    wh = hoursBetween(record.checkIn, record.checkOut);
-  } else if (day === today) {
-    wh = Math.max(
-      0,
-      +((asOf.getTime() - new Date(record.checkIn).getTime()) / (1000 * 60 * 60)).toFixed(2)
-    );
-  } else {
-    const stored = parseFloat(record.totalHours);
-    if (Number.isFinite(stored) && stored >= 0) wh = +stored.toFixed(2);
+
+  // --- Legacy records (no sessions array) ---
+  if (sessions.length === 0) {
+    if (!record.checkIn) return { workHours: null, extraHours: 0 };
+    let wh = null;
+    if (record.checkOut) {
+      wh = hoursBetween(record.checkIn, record.checkOut);
+    } else if (day === today) {
+      wh = Math.max(0, +((asOf.getTime() - new Date(record.checkIn).getTime()) / (1000 * 60 * 60)).toFixed(2));
+    } else {
+      const stored = parseFloat(record.totalHours);
+      if (Number.isFinite(stored) && stored >= 0) wh = +stored.toFixed(2);
+    }
+    const extra = wh != null && wh > STANDARD_DAY_HOURS ? +(wh - STANDARD_DAY_HOURS).toFixed(2) : 0;
+    return { workHours: wh, extraHours: extra };
   }
-  const extra = wh != null && wh > STANDARD_DAY_HOURS ? +(wh - STANDARD_DAY_HOURS).toFixed(2) : 0;
-  return { workHours: wh, extraHours: extra };
+
+  // --- Sessions-aware records ---
+  let totalH = 0;
+  let hasLive = false;
+  for (const s of sessions) {
+    if (s.checkOut) {
+      totalH += s.hours ?? hoursBetween(s.checkIn, s.checkOut) ?? 0;
+    } else if (day === today) {
+      totalH += Math.max(0, (asOf.getTime() - new Date(s.checkIn).getTime()) / (1000 * 60 * 60));
+      hasLive = true;
+    }
+  }
+  totalH = Math.max(0, +totalH.toFixed(2));
+  const extra = totalH > STANDARD_DAY_HOURS ? +(totalH - STANDARD_DAY_HOURS).toFixed(2) : 0;
+  return { workHours: totalH, extraHours: extra, isLive: hasLive };
 }
 
 // Office location (Pune Tech Park)
@@ -44,7 +65,8 @@ const markAttendance = (req, res, next) => {
   try {
     const userId = req.user.id;
     const { latitude, longitude, selfieData, status: manualStatus } = req.body;
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
     const existing = db.attendance.find(a => a.userId === userId && a.date === today);
 
     let geoStatus = null;
@@ -57,25 +79,64 @@ const markAttendance = (req, res, next) => {
     }
 
     if (existing) {
-      if (existing.checkOut) {
-        return res.status(400).json({ message: 'Already checked out for today.' });
+      // Migrate legacy records: sessions might be a number or missing
+      let sessions = Array.isArray(existing.sessions) ? existing.sessions : [];
+      if (sessions.length === 0 && existing.checkIn) {
+        // Build a sessions array from legacy top-level fields
+        sessions = [{ checkIn: existing.checkIn, checkOut: existing.checkOut || null, hours: existing.checkOut ? hoursBetween(existing.checkIn, existing.checkOut) : null }];
       }
+      const lastSession = sessions[sessions.length - 1];
+      const isCurrentlyIn = lastSession && !lastSession.checkOut;
+
+      if (isCurrentlyIn) {
+        // ─── CHECKOUT: close the active session ───
+        const sessionH = hoursBetween(lastSession.checkIn, now.toISOString());
+        lastSession.checkOut = now.toISOString();
+        lastSession.hours = sessionH;
+
+        // Recompute total hours across all sessions
+        const totalH = +(sessions.reduce((s, ss) => s + (ss.hours || 0), 0)).toFixed(2);
+
+        updateOne('attendance', existing._id, {
+          sessions,
+          checkOut: now.toISOString(),       // top-level: last checkout
+          totalHours: String(totalH),
+        });
+        insertOne('activityLogs', {
+          userId, action: 'Checked Out',
+          details: `Session ${sessions.length} ended at ${now.toLocaleTimeString()} (${sessionH}h this session, ${totalH}h total)`,
+          timestamp: now.toISOString(),
+        });
+        return res.json({ message: `Checked out! (${totalH}h total today)`, type: 'checkout' });
+      }
+
+      // ─── RE-CHECK-IN: start a new session ───
+      sessions.push({ checkIn: now.toISOString(), checkOut: null, hours: null });
       updateOne('attendance', existing._id, {
-        checkOut: new Date().toISOString(),
-        totalHours: ((Date.now() - new Date(existing.checkIn).getTime()) / (1000 * 60 * 60)).toFixed(1),
+        sessions,
+        checkIn: now.toISOString(),    // top-level: latest check-in
+        checkOut: null,                // top-level: currently active
       });
       insertOne('activityLogs', {
-        userId, action: 'Checked Out', details: `Checked out at ${new Date().toLocaleTimeString()}`,
-        timestamp: new Date().toISOString(),
+        userId, action: 'Re-Checked In',
+        details: `Session ${sessions.length} started at ${now.toLocaleTimeString()}`,
+        timestamp: now.toISOString(),
       });
-      return res.json({ message: 'Checked out successfully!', type: 'checkout' });
+      return res.json({
+        message: `Checked in again (session ${sessions.length})!`, type: 'checkin',
+        geofence: isWithinGeofence !== null ? { withinRange: isWithinGeofence } : null,
+      });
     }
 
+    // ─── FIRST CHECK-IN of the day ───
     const user = findById('users', userId);
+    const firstSession = { checkIn: now.toISOString(), checkOut: null, hours: null };
     const record = insertOne('attendance', {
       userId, date: today,
       status: geoStatus || manualStatus || 'Present',
-      checkIn: new Date().toISOString(), checkOut: null, totalHours: null,
+      checkIn: now.toISOString(), checkOut: null,
+      totalHours: null,
+      sessions: [firstSession],
       shift: user?.shift || 'Morning',
       geoLocation: (latitude && longitude) ? { lat: latitude, lng: longitude } : null,
       isWithinGeofence,
@@ -85,8 +146,8 @@ const markAttendance = (req, res, next) => {
 
     insertOne('activityLogs', {
       userId, action: 'Checked In',
-      details: `Checked in at ${new Date().toLocaleTimeString()}${geoStatus ? ` (${geoStatus} - geo)` : ''}${selfieData ? ' (with selfie)' : ''}`,
-      timestamp: new Date().toISOString(),
+      details: `Session 1 started at ${now.toLocaleTimeString()}${geoStatus ? ` (${geoStatus})` : ''}${selfieData ? ' (selfie)' : ''}`,
+      timestamp: now.toISOString(),
     });
 
     res.status(201).json({

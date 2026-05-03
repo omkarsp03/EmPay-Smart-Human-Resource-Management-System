@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from './Toast';
-import { notificationAPI, attendanceAPI } from '../api';
-import { Search, Bell, Sun, Moon, CheckCheck, LogIn, LogOut, User, ChevronDown } from 'lucide-react';
+import { notificationAPI } from '../api';
+import { Search, Bell, Sun, Moon, CheckCheck, LogOut, User, ChevronDown } from 'lucide-react';
 import './Topbar.css';
 
 export default function Topbar({ onOpenCommandPalette }) {
@@ -18,29 +18,13 @@ export default function Topbar({ onOpenCommandPalette }) {
   const notifRef = useRef(null);
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [attOpen, setAttOpen] = useState(false);
-  const [checkedIn, setCheckedIn] = useState(false);
   const [clock, setClock] = useState(() => new Date());
   const menuRef = useRef(null);
-  const attRef = useRef(null);
 
   useEffect(() => {
     const id = setInterval(() => setClock(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
-
-  const refreshAttendance = useCallback(async () => {
-    if (!user?._id) return;
-    try {
-      const month = new Date().toISOString().substring(0, 7);
-      const res = await attendanceAPI.getByUser(user._id, { month });
-      const today = new Date().toISOString().split('T')[0];
-      const rec = (res.data.records || []).find((r) => String(r.date).startsWith(today));
-      setCheckedIn(!!rec?.checkIn && !rec?.checkOut);
-    } catch {
-      setCheckedIn(false);
-    }
-  }, [user?._id]);
 
   useEffect(() => {
     loadNotifications();
@@ -49,14 +33,9 @@ export default function Topbar({ onOpenCommandPalette }) {
   }, []);
 
   useEffect(() => {
-    refreshAttendance();
-  }, [refreshAttendance]);
-
-  useEffect(() => {
     const handleClick = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifs(false);
       if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
-      if (attRef.current && !attRef.current.contains(e.target)) setAttOpen(false);
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -83,42 +62,6 @@ export default function Topbar({ onOpenCommandPalette }) {
     return map[type] || '📌';
   };
 
-  const handleCheckIn = () => {
-    if (!('geolocation' in navigator)) {
-      toast.error('Geolocation not supported.');
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const res = await attendanceAPI.mark({
-            type: 'Check-In',
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          });
-          toast.success(res.data?.message || 'Checked in');
-          setCheckedIn(true);
-          setAttOpen(false);
-          refreshAttendance();
-        } catch (err) {
-          toast.error(err.response?.data?.message || 'Check-in failed');
-        }
-      },
-      () => toast.error('Location access is required for check-in.')
-    );
-  };
-
-  const handleCheckOut = async () => {
-    try {
-      const res = await attendanceAPI.mark({ type: 'Check-Out' });
-      toast.success(res.data?.message || 'Checked out');
-      setCheckedIn(false);
-      setAttOpen(false);
-      refreshAttendance();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Check-out failed');
-    }
-  };
 
   return (
     <header className="topbar">
@@ -177,42 +120,6 @@ export default function Topbar({ onOpenCommandPalette }) {
           )}
         </div>
 
-        <div className="notif-container" ref={attRef}>
-          <button
-            type="button"
-            className="btn btn-ghost btn-icon"
-            title="Attendance"
-            onClick={() => setAttOpen(!attOpen)}
-            style={{ position: 'relative' }}
-          >
-            <span
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                background: checkedIn ? 'var(--success)' : 'var(--error)',
-                display: 'block',
-                boxShadow: '0 0 0 2px var(--bg-secondary)',
-              }}
-            />
-          </button>
-          {attOpen && (
-            <div className="notif-dropdown animate-slide-down" style={{ right: 0, left: 'auto', minWidth: 220, padding: 'var(--space-3)' }}>
-              <p className="text-xs text-secondary" style={{ margin: '0 0 var(--space-2)' }}>
-                {checkedIn ? 'You are checked in today.' : 'You are not checked in.'}
-              </p>
-              {checkedIn ? (
-                <button type="button" className="btn btn-secondary" style={{ width: '100%' }} onClick={handleCheckOut}>
-                  <LogOut size={16} /> Check Out
-                </button>
-              ) : (
-                <button type="button" className="btn btn-primary" style={{ width: '100%' }} onClick={handleCheckIn}>
-                  <LogIn size={16} /> Check In
-                </button>
-              )}
-            </div>
-          )}
-        </div>
 
         <div className="notif-container" ref={menuRef}>
           <button

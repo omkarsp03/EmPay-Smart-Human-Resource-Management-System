@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { attendanceAPI } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
@@ -33,9 +33,7 @@ export default function Attendance() {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
-  useEffect(() => { loadData(); getLocation(); }, [currentMonth, adminDay]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const month = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
@@ -59,7 +57,9 @@ export default function Attendance() {
       setHoursNow(new Date());
     } catch {}
     setLoading(false);
-  };
+  }, [currentMonth, adminDay, user._id, canManageEmployees]);
+
+  useEffect(() => { loadData(); getLocation(); }, [loadData]);
 
   const getLocation = () => {
     if (navigator.geolocation) {
@@ -165,10 +165,38 @@ export default function Attendance() {
     <div className="attendance animate-fade-in">
       <div className="page-header">
         <div><h1>Attendance</h1><p className="text-secondary">Track attendance with geolocation & selfie</p></div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
           {!checkedIn && !showCamera && <button className="btn btn-secondary" onClick={startCamera}><Camera size={16} /> Selfie Check-in</button>}
-          <button className="btn btn-primary" onClick={handleMark} disabled={checkedOut}>
-            {!checkedIn ? <><LogIn size={16} /> Check In</> : checkedOut ? '✅ Done' : <><LogOut size={16} /> Check Out</>}
+
+          {/* Status indicator */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '6px 14px', borderRadius: 20, fontWeight: 600, fontSize: '0.8rem',
+            background: checkedIn && !checkedOut ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+            color: checkedIn && !checkedOut ? 'var(--success)' : 'var(--error)',
+          }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: checkedIn && !checkedOut ? 'var(--success)' : 'var(--error)', animation: checkedIn && !checkedOut ? 'pulse-dot 1.5s infinite' : 'none' }} />
+            {checkedIn && !checkedOut ? 'Active' : checkedOut ? 'Checked Out' : 'Not Checked In'}
+          </div>
+
+          {/* Main action button — green for check-in, red for check-out */}
+          <button
+            className="btn btn-lg"
+            style={{
+              background: checkedIn && !checkedOut ? 'var(--error)' : 'var(--success)',
+              color: 'white',
+              minWidth: 150,
+              fontWeight: 600,
+              transition: 'all 0.3s ease',
+            }}
+            onClick={handleMark}
+          >
+            {!checkedIn
+              ? <><LogIn size={16} /> Check In</>
+              : checkedOut
+                ? <><LogIn size={16} /> Check In Again</>
+                : <><LogOut size={16} /> Check Out</>
+            }
           </button>
         </div>
       </div>
@@ -244,22 +272,29 @@ export default function Attendance() {
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Check In</th>
-                  <th>Check Out</th>
+                  <th>Sessions</th>
+                  <th>First In</th>
+                  <th>Last Out</th>
                   <th>Work hours</th>
                   <th>Extra hours</th>
                 </tr>
               </thead>
               <tbody>
                 {monthRecordsSorted.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center text-tertiary" style={{ padding: 'var(--space-8)' }}>No attendance this month</td></tr>
+                  <tr><td colSpan={6} className="text-center text-tertiary" style={{ padding: 'var(--space-8)' }}>No attendance this month</td></tr>
                 ) : (
                   monthRecordsSorted.map((r) => {
                     const { workH, extraH, isLive } = getWorkAndExtraHours(r, hoursNow);
+                    const sessionCount = Array.isArray(r.sessions) ? r.sessions.length : 1;
                     return (
                       <tr key={r._id}>
                         <td>{new Date(r.date).toLocaleDateString()}</td>
-                        <td>{fmtTime(r.checkIn)}</td>
+                        <td>
+                          <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+                            {sessionCount} {sessionCount === 1 ? 'session' : 'sessions'}
+                          </span>
+                        </td>
+                        <td>{fmtTime(Array.isArray(r.sessions) && r.sessions.length ? r.sessions[0].checkIn : r.checkIn)}</td>
                         <td>{fmtTime(r.checkOut)}</td>
                         <td className="font-medium" title={isLive ? 'Still checked in — updates every 10s' : undefined}>
                           {workH != null ? `${workH}h${isLive ? ' · live' : ''}` : '—'}

@@ -66,3 +66,15 @@
 
 [data-theme="dark"] .anniversary-item:hover { background: rgba(255,255,255,0.05); }
 .anniversary-icon { font-size: 22px; }
+
+/* Pulse animation for the active check-in dot */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.6); }
+}
+
+/* Right panel responsive */
+@media (max-width: 900px) {
+  .dashboard { flex-direction: column !important; }
+  .dashboard-right-panel { width: 100% !important; }
+}

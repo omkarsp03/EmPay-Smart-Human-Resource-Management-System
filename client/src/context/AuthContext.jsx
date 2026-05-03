@@ -76,7 +76,7 @@ export function AuthProvider({ children }) {
   const isEmployee = user?.role === 'Employee';
   const canManageEmployees = isAdmin || isHR;
   const canManagePayroll = isAdmin || isPayroll;
-  const canApproveLeaves = isAdmin || isHR;
+  const canApproveLeaves = isAdmin || isHR || isPayroll;
 
   return (
     <AuthContext.Provider value={{

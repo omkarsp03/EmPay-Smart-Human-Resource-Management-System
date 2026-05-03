@@ -132,6 +132,7 @@ export default function TimeOff() {
     try {
       await leaveAPI.approve(id);
       toast.success('Approved');
+      if (filter === 'Pending') setFilter('all');
       loadLeaves();
       loadBalances();
     } catch (err) {
@@ -143,6 +144,7 @@ export default function TimeOff() {
     try {
       await leaveAPI.reject(id);
       toast.success('Rejected');
+      if (filter === 'Pending') setFilter('all');
       loadLeaves();
       loadBalances();
     } catch (err) {
@@ -234,7 +236,7 @@ export default function TimeOff() {
           <h1>Time Off</h1>
           <p className="text-secondary">
             {canApproveLeaves
-              ? 'For Admin & HR Officer — review team requests, balances, and allocations.'
+              ? 'For Admin, HR & Payroll — review team requests, balances, and allocations.'
               : 'Requests, balances, and allocations'}
           </p>
         </div>

@@ -41,8 +41,13 @@ export default function Dashboard() {
       const todayDate = new Date().toISOString().split('T')[0];
       const todayRecord = todayAtt.data.records.find(r => r.date.startsWith(todayDate));
       if (todayRecord) {
-        setIsCheckedIn(true);
+        // Active session = checked in without checkout
+        const isActive = !!todayRecord.checkIn && !todayRecord.checkOut;
+        setIsCheckedIn(isActive);
         setCheckInTime(todayRecord.checkIn);
+      } else {
+        setIsCheckedIn(false);
+        setCheckInTime(null);
       }
     } catch {}
     setLoading(false);
@@ -52,33 +57,40 @@ export default function Dashboard() {
     loadData();
   }, [loadData]);
 
+  const doMark = async (payload = {}) => {
+    try {
+      const res = await attendanceAPI.mark(payload);
+      toast.success(res.data.message);
+      if (res.data.geofence) {
+        toast.info(res.data.geofence.withinRange ? '📍 Within office range' : '🏠 Outside office — marked as WFH');
+      }
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed');
+    }
+  };
+
   const handleCheckIn = async () => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        try {
-          const res = await attendanceAPI.mark({
-            type: 'Check-In',
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          });
-          toast.success(res.data.message);
-          setIsCheckedIn(true);
-          setCheckInTime(new Date().toISOString());
-        } catch (err) { toast.error(err.response?.data?.message || 'Check-in failed'); }
-      }, () => {
-        toast.error('Location access is required for attendance.');
-      });
+    // Try to get location, but don't block check-in if it fails
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          doMark({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        },
+        () => {
+          // Location denied/failed — proceed without location
+          toast.info('Location unavailable — checking in without geo.');
+          doMark({});
+        },
+        { timeout: 5000, maximumAge: 60000 }
+      );
     } else {
-      toast.error('Geolocation is not supported by your browser.');
+      doMark({});
     }
   };
 
   const handleCheckOut = async () => {
-    try {
-      const res = await attendanceAPI.mark({ type: 'Check-Out' });
-      toast.success(res.data.message);
-      setIsCheckedIn(false);
-    } catch (err) { toast.error(err.response?.data?.message || 'Check-out failed'); }
+    doMark({});
   };
 
   const getStatusIcon = (status) => {
@@ -156,24 +168,43 @@ export default function Dashboard() {
               {clock.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
 
-            <div className={`status-badge ${isCheckedIn ? 'checked-in' : 'checked-out'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, background: isCheckedIn ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: isCheckedIn ? 'var(--success)' : 'var(--error)', fontWeight: 600, marginBottom: 'var(--space-6)' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: isCheckedIn ? 'var(--success)' : 'var(--error)' }} />
+            {/* Status badge — green when active, red when checked out / not checked in */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '8px 16px', borderRadius: 20, fontWeight: 600, marginBottom: 'var(--space-6)',
+              background: isCheckedIn ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+              color: isCheckedIn ? 'var(--success)' : 'var(--error)',
+            }}>
+              <div style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: isCheckedIn ? 'var(--success)' : 'var(--error)',
+                animation: isCheckedIn ? 'pulse-dot 1.5s infinite' : 'none',
+              }} />
               {isCheckedIn ? 'Checked In' : 'Not Checked In'}
             </div>
 
+            {/* Action button — green for check-in, red for check-out */}
             {isCheckedIn ? (
-              <button className="btn btn-lg" style={{ width: '100%', background: 'var(--error)', color: 'white' }} onClick={handleCheckOut}>
+              <button
+                className="btn btn-lg"
+                style={{ width: '100%', background: 'var(--error)', color: 'white', fontWeight: 600, transition: 'all 0.3s ease' }}
+                onClick={handleCheckOut}
+              >
                 <LogOut size={18} /> Check Out
               </button>
             ) : (
-              <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={handleCheckIn}>
-                <LogIn size={18} /> Check In
+              <button
+                className="btn btn-lg"
+                style={{ width: '100%', background: 'var(--success)', color: 'white', fontWeight: 600, transition: 'all 0.3s ease' }}
+                onClick={handleCheckIn}
+              >
+                <LogIn size={18} /> {checkInTime ? 'Check In Again' : 'Check In'}
               </button>
             )}
 
             {checkInTime && (
               <p className="text-sm text-tertiary" style={{ marginTop: 'var(--space-4)' }}>
-                Checked in at {new Date(checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {isCheckedIn ? 'Checked in at' : 'Last checked in at'} {new Date(checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
             )}
           </div>

@@ -31,7 +31,7 @@ graph TD
     end
 
     subgraph "Data Layer"
-        DB[(In-Memory Store)]
+        DB[(PostgreSQL + In-Memory Cache)]
         Seed[Seed Utility]
     end
 
@@ -126,6 +126,9 @@ graph LR
 ### Prerequisites
 - Node.js (v18+)
 - npm / yarn
+- PostgreSQL (local or cloud)
+- (Optional) local JSON snapshot file at `server/data/app-state.json`
+- (Optional) local SQLite DB file at `server/data/app-state.db`
 
 ### Installation
 
@@ -139,7 +142,26 @@ graph LR
    ```bash
    cd server
    npm install
+   psql -U postgres -f sql/init-postgres.sql
+   export DATABASE_URL="postgresql://empay_user:empay_pass@localhost:5432/empay"
    npm start
+   ```
+
+   Data is also saved to a local file automatically:
+   - Default path: `server/data/app-state.json`
+   - Override path with `DATA_FILE_PATH=/absolute/path/to/app-state.json`
+
+   Data is also mirrored to a SQLite `.db` file:
+   - Default path: `server/data/app-state.db`
+   - Override path with `SQLITE_DB_PATH=/absolute/path/to/app-state.db`
+
+   If you want custom credentials:
+   ```bash
+   psql -U postgres \
+     -v EMPAY_DB_USER=my_empay_user \
+     -v EMPAY_DB_PASSWORD=my_empay_password \
+     -v EMPAY_DB_NAME=my_empay_db \
+     -f server/sql/init-postgres.sql
    ```
 
 3. **Setup Client**

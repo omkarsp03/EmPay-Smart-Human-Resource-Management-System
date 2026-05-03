@@ -200,8 +200,9 @@ const getPayrollDashboardSummary = (req, res, next) => {
     db.payroll.forEach((p) => {
       const m = p.month;
       if (!m) return;
-      monthlyEmployer[m] =
-        (monthlyEmployer[m] || 0) + (p.netSalary || 0) + (p.pf || 0) * 2;
+      const gross = (p.basicSalary || 0) + (p.hra || 0) + (p.specialAllowance || 0) + (p.bonus || 0);
+      const employerPf = p.pf || 0; // employer PF matches employee PF rate
+      monthlyEmployer[m] = (monthlyEmployer[m] || 0) + gross + employerPf;
     });
     months.forEach((m) => {
       const ids = new Set(db.payroll.filter((p) => p.month === m).map((p) => p.userId));

@@ -86,6 +86,7 @@ export default function Login() {
             {[
               { label: 'Admin', email: 'EMPADMIN20240001', pw: 'admin123' },
               { label: 'HR Officer', email: 'EMPPS20240002', pw: 'hr123' },
+              { label: 'Payroll Officer', email: 'EMPKA20240004', pw: 'pay123' },
               { label: 'Employee', email: 'john@empay.com', pw: 'emp123' },
             ].map(acc => (
               <button key={acc.label} className="btn btn-ghost btn-sm" onClick={() => { setEmail(acc.email); setPassword(acc.pw); }}>

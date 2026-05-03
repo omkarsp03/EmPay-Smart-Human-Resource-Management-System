@@ -9,14 +9,13 @@ import './Sidebar.css';
 
 const navItems = [
   { path: '/', icon: Users, label: 'Employees', roles: ['Admin', 'HR Officer', 'Employee', 'Payroll Officer'] },
-  { path: '/profile', icon: UserCircle, label: 'My Profile', roles: ['Admin', 'HR Officer', 'Employee', 'Payroll Officer'] },
   { path: '/employees', icon: UserSearch, label: 'Team Directory', roles: ['Admin', 'HR Officer', 'Payroll Officer'] },
   { path: '/attendance', icon: CalendarCheck, label: 'Attendance', roles: ['Admin', 'HR Officer', 'Employee', 'Payroll Officer'] },
   { path: '/time-off', icon: CalendarOff, label: 'Time Off', roles: ['Admin', 'HR Officer', 'Employee', 'Payroll Officer'] },
   { path: '/payroll', icon: Wallet, label: 'Payroll', roles: ['Admin', 'Payroll Officer', 'Employee'] },
   { path: '/reports', icon: BarChart3, label: 'Reports', roles: ['Admin', 'Payroll Officer'] },
   { path: '/audit-log', icon: Shield, label: 'Audit Log', roles: ['Admin'] },
-  { path: '/settings', icon: Settings, label: 'Settings', roles: ['Admin', 'HR Officer', 'Employee', 'Payroll Officer'] },
+  { path: '/settings', icon: Settings, label: 'Settings', roles: ['Admin', 'HR Officer', 'Employee'] },
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {

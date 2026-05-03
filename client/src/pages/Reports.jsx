@@ -8,77 +8,63 @@ const COLORS = ['#0071E3', '#34C759', '#FF9F0A', '#FF3B30', '#5AC8FA', '#AF52DE'
 const TABS = ['Salary Statement', 'Overview', 'Anomalies', 'Attrition Risk', 'Salary Report', 'Payroll Forecast'];
 
 export default function Reports() {
+  // =========================================================================
+  // STATE MANAGEMENT (Variables holding our screen's data)
+  // =========================================================================
+  
+  // Dashboard Data
   const [data, setData] = useState(null);
   const [anomalies, setAnomalies] = useState(null);
   const [attrition, setAttrition] = useState(null);
   const [costs, setCosts] = useState(null);
   const [forecast, setForecast] = useState(null);
+  
+  // UI State
   const [activeTab, setActiveTab] = useState('Salary Statement');
   const [loading, setLoading] = useState(true);
-  const [stmtUsers, setStmtUsers] = useState([]);
-  const [stmtUserId, setStmtUserId] = useState('');
+
+  // Salary Statement Tab Specific State
+  const [stmtUsers, setStmtUsers] = useState([]);      // List of employees in the dropdown
+  const [stmtUserId, setStmtUserId] = useState('');    // Currently selected employee
   const [stmtYear, setStmtYear] = useState(() => new Date().getFullYear());
   const [stmtYearOptions, setStmtYearOptions] = useState(() => {
     const y = new Date().getFullYear();
     return [y, y - 1, y - 2, y - 3, y - 4];
   });
-  const [stmtData, setStmtData] = useState(null);
+  const [stmtData, setStmtData] = useState(null);      // The actual salary report data
 
-  useEffect(() => { loadAll(); }, []);
+  // =========================================================================
+  // DATA LOADING HOOKS (Triggered automatically when screen opens or changes)
+  // =========================================================================
 
+  // 1. Load the main HR Analytics data the first time the page opens
+  useEffect(() => { 
+    loadAllAnalyticsData(); 
+  }, []);
+
+  // 2. Load the Dropdown Options when the user visits the "Salary Statement" tab
   useEffect(() => {
-    if (activeTab !== 'Salary Statement') return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [usersRes, payRes] = await Promise.all([
-          userAPI.getAll({ page: 1, limit: 300 }),
-          payrollAPI.getAll({}).catch(() => ({ data: { records: [] } })),
-        ]);
-        if (cancelled) return;
-        const users = usersRes.data.users || [];
-        const precords = payRes.data.records || [];
-        const withPay = new Set(precords.map((r) => r.userId));
-        const yearStrs = [...new Set(precords.map((r) => (r.month || '').split('-')[0]).filter(Boolean))].sort((a, b) =>
-          b.localeCompare(a)
-        );
-        const sortedUsers = [...users].sort((a, b) => {
-          const aw = withPay.has(a._id) ? 0 : 1;
-          const bw = withPay.has(b._id) ? 0 : 1;
-          if (aw !== bw) return aw - bw;
-          return (a.name || '').localeCompare(b.name || '');
-        });
-        setStmtUsers(sortedUsers);
-        const yNow = new Date().getFullYear();
-        const fallbackYears = [yNow, yNow - 1, yNow - 2, yNow - 3, yNow - 4];
-        const yearsNumeric = yearStrs.length ? yearStrs.map((s) => Number(s)) : fallbackYears;
-        setStmtYearOptions(yearsNumeric);
-        const pick = sortedUsers.find((u) => withPay.has(u._id)) || sortedUsers[0];
-        setStmtUserId((prev) => {
-          if (prev && sortedUsers.some((u) => u._id === prev)) return prev;
-          return pick?._id || '';
-        });
-        setStmtYear((prev) => (yearsNumeric.includes(prev) ? prev : yearsNumeric[0] ?? yNow));
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
-    };
+    if (activeTab === 'Salary Statement') {
+      prepareSalaryStatementDropdowns();
+    }
   }, [activeTab]);
 
+  // 3. Load the specific Employee's Salary Report when they change the dropdown
   useEffect(() => {
-    if (activeTab !== 'Salary Statement' || !stmtUserId) return;
-    (async () => {
-      try {
-        const res = await payrollAPI.getSalaryStatement(stmtUserId, { year: stmtYear });
-        setStmtData(res.data);
-      } catch {
-        setStmtData(null);
-      }
-    })();
+    if (activeTab === 'Salary Statement' && stmtUserId) {
+      fetchSalaryReportForEmployee();
+    }
   }, [activeTab, stmtUserId, stmtYear]);
 
-  const loadAll = async () => {
+  // =========================================================================
+  // HELPER FUNCTIONS (The actual work being done)
+  // =========================================================================
+
+  /**
+   * Fetches all the data for the graphs, pie charts, and AI predictions.
+   * Runs all the API requests at the same time to make the page load fast.
+   */
+  const loadAllAnalyticsData = async () => {
     setLoading(true);
     try {
       const [dash, anom, attr, cost, fore] = await Promise.all([
@@ -88,38 +74,109 @@ export default function Reports() {
         analyticsAPI.getCostBreakdown().catch(() => ({ data: { breakdown: [], totalCompanyCost: 0 } })),
         analyticsAPI.getPayrollForecast().catch(() => ({ data: { history: [], forecast: [], combined: [] } })),
       ]);
+      
+      // Save everything into our React State
       setData(dash.data);
       setAnomalies(anom.data);
       setAttrition(attr.data);
       setCosts(cost.data);
       setForecast(fore.data);
-    } catch {}
+    } catch (error) {
+      console.error("Failed to load analytics data", error);
+    }
     setLoading(false);
   };
 
+  /**
+   * Figures out which employees and years should be shown in the dropdowns.
+   * We only want to highlight employees who actually have payroll records.
+   */
+  const prepareSalaryStatementDropdowns = async () => {
+    try {
+      const [usersRes, payRes] = await Promise.all([
+        userAPI.getAll({ page: 1, limit: 300 }),
+        payrollAPI.getAll({}).catch(() => ({ data: { records: [] } })),
+      ]);
+      
+      const allUsers = usersRes.data.users || [];
+      const payrollRecords = payRes.data.records || [];
+      
+      // Figure out which users have payroll records and which years exist
+      const usersWithPayroll = new Set(payrollRecords.map((record) => record.userId));
+      const activeYears = [...new Set(payrollRecords.map((r) => (r.month || '').split('-')[0]).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+      
+      // Sort users alphabetically, but put those with payroll records at the top
+      const sortedUsers = [...allUsers].sort((a, b) => {
+        const aHasPay = usersWithPayroll.has(a._id) ? 0 : 1;
+        const bHasPay = usersWithPayroll.has(b._id) ? 0 : 1;
+        if (aHasPay !== bHasPay) return aHasPay - bHasPay;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      
+      setStmtUsers(sortedUsers);
+
+      // Set up the years dropdown
+      const currentYear = new Date().getFullYear();
+      const fallbackYears = [currentYear, currentYear - 1, currentYear - 2, currentYear - 3, currentYear - 4];
+      const yearsNumeric = activeYears.length > 0 ? activeYears.map(Number) : fallbackYears;
+      setStmtYearOptions(yearsNumeric);
+
+      // Auto-select the first valid user and year
+      const firstValidUser = sortedUsers.find((u) => usersWithPayroll.has(u._id)) || sortedUsers[0];
+      setStmtUserId((prev) => (prev && sortedUsers.some((u) => u._id === prev) ? prev : firstValidUser?._id || ''));
+      setStmtYear((prev) => (yearsNumeric.includes(prev) ? prev : yearsNumeric[0] ?? currentYear));
+      
+    } catch (error) {
+      console.error("Failed to prepare dropdowns", error);
+    }
+  };
+
+  /**
+   * Fetches the detailed breakdown of Earnings and Deductions for the selected user.
+   */
+  const fetchSalaryReportForEmployee = async () => {
+    try {
+      const res = await payrollAPI.getSalaryStatement(stmtUserId, { year: stmtYear });
+      setStmtData(res.data);
+    } catch {
+      setStmtData(null); // Clear the data if no record exists for that year
+    }
+  };
+
+  // =========================================================================
+  // EXPORT FUNCTIONS (Downloading Data to Computer)
+  // =========================================================================
+
+  /** Downloads a simple CSV file of the departments and employee count */
   const exportCSV = () => {
     if (!data) return;
     const rows = [['Department', 'Employees']];
     (data.departments || []).forEach(d => rows.push([d.name, d.count]));
     const csv = rows.map(r => r.join(',')).join('\n');
+    
+    // Create a virtual file link and simulate a click to download
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'empay_report.csv'; a.click();
     URL.revokeObjectURL(url);
   };
 
+  /** Downloads a styled Excel (.xls) file showing Payroll costs and Headcount */
   const exportExcel = () => {
     if (!data) return;
     let content = '<html><head><meta charset="utf-8"></head><body><table border="1">';
     content += '<tr><th>Department</th><th>Employees</th></tr>';
     (data.departments || []).forEach(d => { content += `<tr><td>${d.name}</td><td>${d.count}</td></tr>`; });
     content += '</table>';
+    
     if (costs?.breakdown) {
       content += '<br/><table border="1"><tr><th>Department</th><th>Total Cost</th><th>Headcount</th><th>Cost/Employee</th></tr>';
       costs.breakdown.forEach(d => { content += `<tr><td>${d.department}</td><td>${d.totalCost}</td><td>${d.headcount}</td><td>${d.costPerEmployee}</td></tr>`; });
       content += '</table>';
     }
     content += '</body></html>';
+    
+    // Create a virtual file link and simulate a click to download
     const blob = new Blob([content], { type: 'application/vnd.ms-excel' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'empay_report.xls'; a.click();
